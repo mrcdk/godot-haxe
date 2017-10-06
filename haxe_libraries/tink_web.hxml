@@ -1,0 +1,8 @@
+# @install: lix --silent download "haxelib:tink_web#0.0.0-alpha.0" into tink_web/0.0.0-alpha.0/haxelib
+-D tink_web=0.0.0-alpha.0
+-cp ${HAXESHIM_LIBCACHE}/tink_web/0.0.0-alpha.0/haxelib/src
+
+-lib tink_template
+-lib tink_macro
+-lib tink_http
+-lib tink_json

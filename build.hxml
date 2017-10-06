@@ -1,0 +1,20 @@
+-lib tink_core
+-lib tink_json
+-lib tink_io
+-lib tink_template
+-lib thx.core
+#-lib hxnodejs
+
+-cp godot
+-cp src
+-D analyzer-optimize
+-D eval-stack
+
+#--macro include("godot")
+
+-D tink_template_pos=off
+-debug
+
+-main Main
+#-js app.js
+--interp

@@ -1,0 +1,4 @@
+!godot/
+
+godot/*
+!godot/core/

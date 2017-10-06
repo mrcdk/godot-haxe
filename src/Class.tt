@@ -1,0 +1,62 @@
+package (: packagePath :);
+(: for i in imports :)
+import (: i :);
+(:end:)
+(: if enums.length > 0:)
+(: for e in enums :)
+@:enum abstract (: e.name :)(Int) from Int to Int {
+  (: for val in e.values :)
+    var (: val.key :) = (: val.value :);
+  (: end :)
+}
+(: end :)
+(:end:)
+
+@:hlNative("godot")
+extern class (: className :) (: if extendsClass != null :)extends (: extendsClass :) (: end :) {
+
+(: if instanciable && extendsClass == null :)
+  var __ptr__:ObjectPtr;
+(: end :)
+
+(: if instanciable :)
+  public function new() {(: if extendsClass != null :) super(); (:else:) __ptr__ = __create__(); (:end:)} 
+(:end:)
+
+  /***** CONSTANTS *****/
+(: for const in constants :)
+  public static inline var (: const.key :) = (: const.value :);
+(: end :)
+
+  /***** PROPERTIES *****/
+(: for property in properties :)
+  public(: if singleton :) static (:else:) (:end:)var (: property.name :)(:if property.hasGetterOrSetter:)((:if property.getter != null:)get(:else:)default(:end:), (:if property.getter != null:)set(:else:)null(:end:))(:end:):(: property.type :);
+  (:if property.getter != null:)
+  inline function get_(:property.name:)():(:property.type:) return __(:property.getter:)((: if instanciable:)__ptr__(:end:));
+  (:end:) 
+  (:if property.setter != null:)
+  inline function set_(:property.name:)(v:(:property.type:)):(:property.type:) return {__(:property.setter:)((: if instanciable:)__ptr__, (:end:)v); v;}
+  (:end:)
+(: end :)
+
+  /***** METHODS *****/
+(: for method in methods :)
+  (:if method.isPrivate:)private(:else:)public(:end:)(: if (singleton || method.isStatic) :) static (:else:) (:end:) function (: method.name :) ((:if method.args != null:)(:method.args:)(:end:)):(: method.returnType :) {
+    (: if method.canReturn :)return (:end:)(: method.native :)((: if instanciable :)__ptr__(:if method.callArgs != null:), (:end:)(:end:)(:if method.callArgs != null:)(:method.callArgs:)(:end:));
+  }
+(: end :)
+
+
+  /***** NATIVE METHODS *****/
+
+(: if instanciable && extendsClass == null :)
+  @:hlNative("godot", "__create__")
+  static function __create__():ObjectPtr;
+(:end:)
+
+(: for method in native_methods :)
+  @:hlNative("godot", "(: method.native :)") (: for meta in method.metadata :)@:godot_method("(: meta :)") (: end :)
+  (: if method.isStatic :)public (:end:)static function (: method.name :) ((: if instanciable:)__ptr__:ObjectPtr(:if method.args != null:), (:end:)(:end:)(:if method.args != null:)(:method.args:)(:end:)):(: method.returnType :);
+(: end :)
+  
+}
