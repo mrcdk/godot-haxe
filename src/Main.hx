@@ -1,8 +1,5 @@
 import haxe.DynamicAccess;
 
-import thx.Set;
-
-using tink.CoreApi;
 using thx.Strings;
 using thx.Arrays;
 
@@ -341,19 +338,6 @@ class Util {
           var a = x.after("enum.").split("::");
           '${a[0]}.${a[0]}${a[1]}';
         }
-
-/*
-        if(x.contains("Variant")) {
-          // enum.Variant::EnumType
-          x.after(".").replace("::", ".");
-        } else if(x.endsWith("Error")) {
-          // enum.Error is a core type
-          x.replace("::", ".").afterLast(".");
-        } else {
-          // enum.ClassName::EnumType
-          classType + x.replace("::", ".").afterLast(".");
-        }
-*/
       case _: 
         //trace(t);
         t;
