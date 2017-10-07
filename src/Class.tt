@@ -12,7 +12,7 @@ import (: i :);
 (: end :)
 (:end:)
 
-@:hlNative("godot")
+@:hlNative("godot") (: for meta in metadata :)@:(: meta :) (: end :)
 extern class (: className :) (: if extendsClass != null :)extends (: extendsClass :) (: end :) {
 
 (: if instanciable && extendsClass == null :)
@@ -30,7 +30,7 @@ extern class (: className :) (: if extendsClass != null :)extends (: extendsClas
 
   /***** PROPERTIES *****/
 (: for property in properties :)
-  public(: if singleton :) static (:else:) (:end:)var (: property.name :)(:if property.hasGetterOrSetter:)((:if property.getter != null:)get(:else:)default(:end:), (:if property.getter != null:)set(:else:)null(:end:))(:end:):(: property.type :);
+  public(: if singleton :) static (:else:) (:end:)var (: property.name :)(:if property.hasGetterOrSetter:)((:if property.getter != null:)get(:else:)default(:end:), (:if property.setter != null:)set(:else:)never(:end:))(:end:):(: property.type :);
   (:if property.getter != null:)
   inline function get_(:property.name:)():(:property.type:) return __(:property.getter:)((: if instanciable:)__ptr__(:end:));
   (:end:) 

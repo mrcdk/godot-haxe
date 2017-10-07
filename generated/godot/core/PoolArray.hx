@@ -1,5 +1,5 @@
 package godot.core;
 
-class PoolArrays {
+class PoolArray<T> {
   
 }

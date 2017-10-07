@@ -1,5 +1,5 @@
 package godot.core;
 
-class Ref {
+class Ref<T> {
   
 }

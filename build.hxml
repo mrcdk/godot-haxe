@@ -5,12 +5,12 @@
 -lib thx.core
 #-lib hxnodejs
 
--cp godot
+-cp generated
 -cp src
 -D analyzer-optimize
 -D eval-stack
 
-#--macro include("godot")
+--macro include("godot")
 
 -D tink_template_pos=off
 -debug

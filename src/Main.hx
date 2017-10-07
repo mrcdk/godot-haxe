@@ -73,24 +73,30 @@ class Main {
     var file = sys.io.File.getContent("api.json");
     var types:Array<TypeData> = haxe.Json.parse(file);
     var classes:Array<Cls> = [];
-    var foundTypes:Set<String> = Set.createString();
-    for(type in types) {
+
+    //tidyup types
+    types = types.map(type -> {
       type.name = Util.baseTypeToHaxe(type.name);
       type.base_class = Util.baseTypeToHaxe(type.base_class);
-      foundTypes.add(type.name);
-      foundTypes.add(type.base_class);
+      type;
+    });
+
+    var ref_types:Array<TypeData> = types.filter(t -> t.is_reference);
+    function ref(type:String) {
+      return ref_types.find(t -> t.name == type) != null ? 'Ref<${type}>' : type;
+    }
+
+    for(type in types) {
       type.properties = type.properties.map((p) -> {
         p.name = Util.sanitize(p.name);
-        p.type = Util.baseTypeToHaxe(p.type);
-        foundTypes.add(p.type);
-        p.hasGetterOrSetter = p.getter != null || p.setter != null;
+        p.type = ref(Util.baseTypeToHaxe(p.type));
+        p.hasGetterOrSetter = !p.getter.isEmpty() || !p.setter.isEmpty();
         p.getter = Util.sanitize(p.getter);
         p.setter = Util.sanitize(p.setter);
         p;
       });
       type.methods.each((m) -> {
-        m.return_type = Util.baseTypeToHaxe(m.return_type);
-        foundTypes.add(m.return_type);
+        m.return_type = ref(Util.baseTypeToHaxe(m.return_type));
         m.arguments.each((arg) -> {
           arg.name = Util.sanitize(arg.name);
           
@@ -103,10 +109,7 @@ class Main {
             arg.default_value = "";
             arg.has_default_value = false;
           }
-          arg.type = Util.baseTypeToHaxe(arg.type);
-          
-
-          foundTypes.add(arg.type);
+          arg.type = ref(Util.baseTypeToHaxe(arg.type));
         });
       });
 
@@ -120,8 +123,16 @@ class Main {
         c.properties = type.properties;
         var skip_methods = [];
         for(p in type.properties.filter(f -> f.hasGetterOrSetter)) {
-          if(!p.getter.isEmpty()) skip_methods.push(p.getter);
-          if(!p.setter.isEmpty()) skip_methods.push(p.setter);
+          if(!p.getter.isEmpty()) {
+            skip_methods.push(p.getter);
+          } else {
+            p.getter = null;
+          }
+          if(!p.setter.isEmpty()) {
+            skip_methods.push(p.setter);
+          } else {
+            p.setter = null;
+          }
         }
         c.imports.push("godot.core.*");
         if(!type.base_class.isEmpty()) {
@@ -159,7 +170,7 @@ class Main {
 
         for(e in type.enums) {
           var ecls = new EnumClass();
-          ecls.name = e.name;
+          ecls.name = '${type.name}${e.name}';
           for(key in e.values.keys()) {
             ecls.values.push({key: key, value: e.values.get(key)});
           }
@@ -179,15 +190,16 @@ class Main {
       }
     }
 
-    if(!sys.FileSystem.exists("godot")) {
+    if(!sys.FileSystem.exists("generated")) {
+      sys.FileSystem.createDirectory("generated");
+    }
+    if(!sys.FileSystem.exists("generated/godot")) {
       sys.FileSystem.createDirectory("godot");
     }
 
     for(cls in classes) {
-      sys.io.File.saveContent('godot/${cls.className}.hx', cls.renderClass());
+      sys.io.File.saveContent('generated/godot/${cls.className}.hx', cls.renderClass());
     }
-
-    //trace(foundTypes);
   }
 }
 
@@ -202,6 +214,8 @@ class Cls {
   public var enums:Array<EnumClass> = [];
 
   public var imports:Array<String> = [];
+
+  public var metadata:Array<String> = [];
 
   public var constants:Array<KV<Int>> = [];
   public var properties:Array<PropertyData> = [];
@@ -271,14 +285,14 @@ class Util {
       case "bool", "int": v.toLowerCase();
       case "String": '"${v}"';
       case "Color": 'new Color(${v})';
-      case "Array": 'new haxe.ds.Vector<Dynamic>()';
-      case "PoolColorArray": "new haxe.ds.Vector<Color>()";
-      case "PoolVector3Array": "new haxe.ds.Vector<Vector3>()";
-      case "PoolVector2Array": "new haxe.ds.Vector<Vector2>()";
-      case "PoolStringArray": "new haxe.ds.Vector<String>()";
-      case "PoolRealArray": "new haxe.ds.Vector<Float>()";
-      case "PoolIntArray": "new haxe.ds.Vector<Int>()";
-      case "PoolByteArray": "new haxe.ds.Vector<Int>()";
+      case "Array": 'new GDArray()';
+      case "PoolColorArray": "new PoolArray<Color>()";
+      case "PoolVector3Array": "new PoolArray<Vector3>()";
+      case "PoolVector2Array": "new PoolArray<Vector2>()";
+      case "PoolStringArray": "new PoolArray<String>()";
+      case "PoolRealArray": "new PoolArray<Float>()";
+      case "PoolIntArray": "new PoolArray<Int>()";
+      case "PoolByteArray": "new PoolArray<Int>()";
       case "Vector2": 'new Vector2${v}';
       case "Vector3": 'new Vector3${v}';
       case "Transform": 'new Transform()';
@@ -299,20 +313,47 @@ class Util {
       case "int": "Int";
       case "string": "String";
       case "float": "Float";
-      case "Array": "haxe.ds.Vector<Dynamic>";
-      case "PoolColorArray": "haxe.ds.Vector<Color>";
-      case "PoolVector3Array": "haxe.ds.Vector<Vector3>";
-      case "PoolVector2Array": "haxe.ds.Vector<Vector2>";
-      case "PoolStringArray": "haxe.ds.Vector<String>";
-      case "PoolRealArray": "haxe.ds.Vector<Float>";
-      case "PoolIntArray": "haxe.ds.Vector<Int>";
-      case "PoolByteArray": "haxe.ds.Vector<Int>";
       case "bool": "Bool";
       case "void": "Void";
-      case x if (x.startsWith("enum")): 
-         var t = x.after(".");
-         t = t.replace("::", ".");
-        t;
+
+      case "Array": "GDArray";
+      case "PoolColorArray": "PoolArray<Color>";
+      case "PoolVector3Array": "PoolArray<Vector3>";
+      case "PoolVector2Array": "PoolArray<Vector2>";
+      case "PoolStringArray": "PoolArray<String>";
+      case "PoolRealArray": "PoolArray<Float>";
+      case "PoolIntArray": "PoolArray<Int>";
+      case "PoolByteArray": "PoolArray<Int>";
+
+
+      //FIX?
+      case "ShaderMaterial,SpatialMaterial": "Material";
+      case "ShaderMaterial,CanvasItemMaterial": "Material";
+      case "ShaderMaterial,ParticlesMaterial": "Material";
+
+      case x if (x.startsWith("enum")):
+
+        if(x.endsWith("Error")) {
+          x.afterLast(".");
+        } else if(x.contains("Variant") || x.contains("Vector3")) {
+          x.after("enum.").replace("::", ".");
+        } else {
+          var a = x.after("enum.").split("::");
+          '${a[0]}.${a[0]}${a[1]}';
+        }
+
+/*
+        if(x.contains("Variant")) {
+          // enum.Variant::EnumType
+          x.after(".").replace("::", ".");
+        } else if(x.endsWith("Error")) {
+          // enum.Error is a core type
+          x.replace("::", ".").afterLast(".");
+        } else {
+          // enum.ClassName::EnumType
+          classType + x.replace("::", ".").afterLast(".");
+        }
+*/
       case _: 
         //trace(t);
         t;

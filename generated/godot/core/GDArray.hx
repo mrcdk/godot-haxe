@@ -1,5 +1,5 @@
 package godot.core;
 
-class Vector3 {
+class GDArray {
   
 }
