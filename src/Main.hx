@@ -22,6 +22,7 @@ typedef PropertyData = {
   type:String,
   getter:String,
   setter:String,
+  index:Int,
   ?hasGetterOrSetter:Bool,
 }
 typedef SignalData = {
@@ -39,7 +40,9 @@ typedef MethodData = {
   is_virtual:Bool,
   has_varargs:Bool,
   is_from_script:Bool,
-  arguments:Array<ArgumentData>
+  arguments:Array<ArgumentData>,
+
+  ?is_override:Bool,
 }
 typedef EnumData = {
   name:String,
@@ -71,10 +74,16 @@ class Main {
     var types:Array<TypeData> = haxe.Json.parse(file);
     var classes:Array<Cls> = [];
 
+    var type_map:Map<String, Array<String>> = new Map();
+
     //tidyup types
     types = types.map(type -> {
       type.name = Util.baseTypeToHaxe(type.name);
       type.base_class = Util.baseTypeToHaxe(type.base_class);
+      if(!type_map.exists(type.base_class)) {
+        type_map.set(type.base_class, []);
+      }
+      type_map.get(type.base_class).push(type.name);
       type;
     });
 
@@ -106,6 +115,10 @@ class Main {
             arg.default_value = "";
             arg.has_default_value = false;
           }
+          // HACK fix MenuButton bad parameter type
+          if(type.name == "MenuButton" && m.name == "_unhandled_key_input") {
+            arg.type = "InputEventKey";
+          }
           arg.type = ref(Util.baseTypeToHaxe(arg.type));
         });
       });
@@ -117,8 +130,9 @@ class Main {
         c.packagePath = 'godot';
         c.className = '${type.name}';
         c.rawClassName = '${type.name}';
-        c.properties = type.properties;
+        //c.properties = type.properties;
         var skip_methods = [];
+        /*
         for(p in type.properties.filter(f -> f.hasGetterOrSetter)) {
           if(!p.getter.isEmpty()) {
             skip_methods.push(p.getter);
@@ -131,10 +145,13 @@ class Main {
             p.setter = null;
           }
         }
+        */
+
         c.imports.push("godot.core.*");
         if(!type.base_class.isEmpty()) {
           c.extendsClass = '${type.base_class}';
         }
+
         for(method in type.methods) {
           var m = new Method();
           m.native = method.name;
@@ -151,9 +168,13 @@ class Main {
 
           c.native_methods.push(m);
 
-          if(skip_methods.contains(method.name)) continue;
+          if(skip_methods.contains(method.name)) {
+            continue;
+          } 
 
           var m = new Method();
+          var super_class = Util.lookup_method(types, type.base_class, method.name);
+          m.isOverride = super_class != null;
           m.name = Util.sanitize(method.name);
           m.isPrivate = m.name.startsWith("_");
           m.native = '__${method.name}';
@@ -235,6 +256,7 @@ class Method {
   @:isVar public var returnType(default, set):String;
   public var canReturn:Bool = false;
   public var returnValue:String = "null";
+  public var isOverride:Bool = false;
 
   public var metadata:Array<String> = [];
   @:isVar public var arguments(default, set):Array<ArgumentData> = [];
@@ -342,5 +364,16 @@ class Util {
         //trace(t);
         t;
     }
+  }
+
+  public static function lookup_method(types:Array<TypeData>, super_class:String, method:String) {
+    var type = types.find((t) -> t.name == super_class);
+    if (type == null) return null;
+    for(m in type.methods) {
+      if (m.name == method) {
+        return type.name;
+      }
+    }
+    return lookup_method(types, type.base_class, method);
   }
 }
